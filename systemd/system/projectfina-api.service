@@ -1,0 +1,14 @@
+[Unit]
+Description=libuo web server handling API requests for projectfina.com
+
+[Service]
+WorkingDirectory=/usr/local/projectfina-api/bin
+ExecStart=/usr/local/projectfina-api/bin/projectfina-api
+Restart=always
+RestartSec=20
+StartLimitInterval=600
+StartLimitBurst=3
+User=www-data
+
+[Install]
+WantedBy=multi-user.target

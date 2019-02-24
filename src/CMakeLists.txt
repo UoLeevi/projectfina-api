@@ -14,9 +14,6 @@ endif()
 if(NOT TARGET uo::uo_jwt)
     find_package(uo_jwt CONFIG REQUIRED)
 endif()
-if(NOT TARGET uo::uo_base64)
-    find_package(uo_base64 CONFIG REQUIRED)
-endif()
 if(NOT TARGET uo::uo_prog)
     find_package(uo_prog CONFIG REQUIRED)
 endif()
@@ -30,7 +27,6 @@ target_link_libraries(projectfina-api
         uo::uo_err
         uo::uo_http
         uo::uo_jwt
-        uo::uo_base64
         uo::uo_prog
         PostgreSQL)
 

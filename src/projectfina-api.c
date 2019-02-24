@@ -2,7 +2,6 @@
 #include "uo_http.h"
 #include "uo_http_server.h"
 #include "uo_jwt.h"
-#include "uo_base64.h"
 #include "uo_err.h"
 #include "uo_prog.h"
 
@@ -41,11 +40,12 @@ void http_server_before_send_response(
 
         if (hdr_authorization && sscanf(hdr_authorization, "Bearer %1023s", jwt) == 1)
         {
-            char *jwt_payload = strchr(jwt, '.') + 1;
-            char *jwt_payload_end = strchr(jwt_payload, '.');
+            char *jwt_payload = uo_jwt_decode_payload(NULL, jwt, strlen(jwt));
+            char *jwt_claim_sub = uo_json_find_value(jwt_payload, "sub");
 
-            jwt_payload_end = uo_base64url_decode(jwt_payload, jwt_payload, jwt_payload_end - jwt_payload);
-            *jwt_payload_end = '\0';
+            char user_uuid[37];
+
+            memcpy(user_uuid, jwt_claim_sub, 36);
 
             if (strcmp(uri, "/user/groups") == 0)
             {
@@ -55,6 +55,7 @@ void http_server_before_send_response(
             }
         }
         else
+response_401:
             http_response_with_401(http_response);
     }
 

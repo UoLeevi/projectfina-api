@@ -41,14 +41,11 @@ void http_server_before_send_response(
 
         if (hdr_authorization && sscanf(hdr_authorization, "Bearer %1023s", jwt) == 1)
         {
-
             char *jwt_payload = strchr(jwt, '.') + 1;
             char *jwt_payload_end = strchr(jwt_payload, '.');
 
-            jwt_payload_end = uo_base64_decode(jwt_payload, jwt_payload, jwt_payload_end - jwt_payload);
+            jwt_payload_end = uo_base64url_decode(jwt_payload, jwt_payload, jwt_payload_end - jwt_payload);
             *jwt_payload_end = '\0';
-
-            print("%s\n", jwt_payload);
 
             if (strcmp(uri, "/user/groups") == 0)
             {

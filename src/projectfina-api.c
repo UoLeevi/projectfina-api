@@ -46,7 +46,7 @@ static void http_response_get_groups(
     const char *paramValues_get_groups[1] = { user_uuid };
 
     PGresult *groups_res = PQexecParams(pgconn,
-        "SELECT '{\"groups\":' || to_json(array_agg(t)) || '}' json "
+        "SELECT json_build_object('groups', json_agg(t)) json "
           "FROM ("
             "SELECT * "
             "FROM groups g JOIN users_x_groups u_x_g ON g.uuid = u_x_g.group_uuid "

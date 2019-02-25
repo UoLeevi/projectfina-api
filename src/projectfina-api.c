@@ -16,7 +16,7 @@
 #define HTTP_500_JSON \
     "{ \"message\": \"server error\" }"
 
-static PGconn *pgconn;
+static char *conninfo;
 
 static void http_response_with_400(
     uo_http_msg *http_response)
@@ -39,10 +39,13 @@ static void http_response_with_500(
     uo_http_msg_set_content(http_response, HTTP_500_JSON, "application/json", UO_STRLEN(HTTP_500_JSON));
 }
 
-static void http_response_get_groups(
-    uo_http_msg *http_response,
+static void http_sess_get_groups(
+    uo_http_sess *http_sess,
     const char *user_uuid)
 {
+    uo_http_msg *http_response = http_sess->http_response;
+    PGconn *pgconn = uo_http_sess_get_user_data(http_sess);
+    
     const char *paramValues_get_groups[1] = { user_uuid };
 
     PGresult *groups_res = PQexecParams(pgconn,
@@ -63,10 +66,13 @@ static void http_response_get_groups(
     PQclear(groups_res);
 }
 
-static void http_response_get_watchlists(
-    uo_http_msg *http_response,
+static void http_sess_get_watchlists(
+    uo_http_sess *http_sess,
     const char *user_uuid)
 {
+    uo_http_msg *http_response = http_sess->http_response;
+    PGconn *pgconn = uo_http_sess_get_user_data(http_sess);
+
     const char *paramValues_get_watchlists[1] = { user_uuid };
 
     PGresult *watchlists_res = PQexecParams(pgconn,
@@ -123,9 +129,9 @@ void http_server_before_send_response(
                 case UO_HTTP_GET:
                 {
                     if (strcmp(uri, "/user/groups") == 0)
-                        http_response_get_groups(http_response, user_uuid);
+                        http_sess_get_groups(http_sess, user_uuid);
                     else if (strcmp(uri, "/user/watchlists") == 0)
-                        http_response_get_watchlists(http_response, user_uuid);
+                        http_sess_get_watchlists(http_sess, user_uuid);
 
                     break;
                 }
@@ -142,6 +148,31 @@ response_401:
     uo_cb_invoke(cb);
 }
 
+void http_server_after_open(
+    uo_cb *cb)
+{
+    uo_http_sess *http_sess = uo_cb_stack_index(cb, 0);
+
+    PGconn *pgconn = PQconnectdb(conninfo);
+    if (!pgconn)
+        uo_http_sess_next_close(http_sess);
+
+    uo_http_sess_set_user_data(http_sess, pgconn);
+
+    uo_cb_invoke(cb);
+}
+
+void http_server_after_close(
+    uo_cb *cb)
+{
+    uo_http_sess *http_sess = uo_cb_stack_index(cb, 0);
+    PGconn *pgconn = uo_http_sess_get_user_data(http_sess);
+    PQfinish(pgconn);
+
+    uo_cb_invoke(cb);
+}
+
+
 int main(
     int argc,
     char **argv)
@@ -150,18 +181,16 @@ int main(
 
     uo_conf *conf = uo_conf_create("projectfina-api.conf");
 
-    const char *conninfo = uo_conf_get(conf, "pg.conninfo");
-
-    pgconn = PQconnectdb(conninfo);
-    if (!pgconn)
-        uo_err_exit("Unable to connect to database.");
+    conninfo = uo_conf_get(conf, "pg.conninfo");
 
     const char *port = uo_conf_get(conf, "http_server.port");
     const char *root_dir = uo_conf_get(conf, "http_server.root_dir");
 
     uo_http_server *http_server = uo_http_server_create(port);
 
+    uo_cb_append(http_server->evt_handlers.after_open, http_server_after_open);
     uo_cb_append(http_server->evt_handlers.before_send_msg, http_server_before_send_response);
+    uo_cb_append(http_server->evt_handlers.after_close, http_server_after_close);
 
     if (!uo_http_server_set_opt_serve_static_files(http_server, root_dir))
         uo_err_exit("Error while setting root directory.");
@@ -172,8 +201,6 @@ int main(
     uo_prog_wait_for_sigint();
 
     uo_http_server_destroy(http_server);
-
-    PQfinish(pgconn);
 
     uo_conf_destroy(conf);
 

@@ -63,6 +63,30 @@ static void http_response_get_groups(
     PQclear(groups_res);
 }
 
+static void http_response_get_watchlists(
+    uo_http_msg *http_response,
+    const char *user_uuid)
+{
+    const char *paramValues_get_watchlists[1] = { user_uuid };
+
+    PGresult *watchlists_res = PQexecParams(pgconn,
+        "SELECT get_watchlists_for_user_as_json($1::uuid) json;",
+        1, NULL, paramValues_get_watchlists, NULL, NULL, 0);
+
+    if (PQresultStatus(watchlists_res) != PGRES_TUPLES_OK)
+        http_response_with_500(http_response);
+    else
+    {
+        char *json = PQgetvalue(watchlists_res, 0, 0);
+        size_t json_len = PQgetlength(watchlists_res, 0, 0);
+
+        uo_http_msg_set_status_line(http_response, UO_HTTP_200, UO_HTTP_1_1);
+        uo_http_msg_set_content(http_response, json, "application/json", json_len);
+    }
+
+    PQclear(watchlists_res);
+}
+
 void http_server_before_send_response(
     uo_cb *cb)
 {
@@ -71,7 +95,6 @@ void http_server_before_send_response(
     uo_http_msg *http_response = http_sess->http_response;
 
     const char *uri = uo_http_request_get_uri(http_request);
-    uo_http_method method = uo_http_request_get_method(http_request);
 
     uo_http_msg_set_header(http_response, "server", "libuo http");
     uo_http_msg_set_header(http_response, "access-control-allow-origin", "*");
@@ -95,11 +118,21 @@ void http_server_before_send_response(
             memcpy(user_uuid, jwt_claim_sub + 1, 36);
             user_uuid[36] = '\0';
 
-            if (strcmp(uri, "/user/groups") == 0 && method == UO_HTTP_GET)
-                http_response_get_groups(http_response, user_uuid);
-            else
-                http_response_with_400(http_response);
+            switch (uo_http_request_get_method(http_request))
+            {
+                case UO_HTTP_GET:
+                {
+                    if (strcmp(uri, "/user/groups") == 0)
+                        http_response_get_groups(http_response, user_uuid);
+                    else if (strcmp(uri, "/user/watchlists") == 0)
+                        http_response_get_watchlists(http_response, user_uuid);
 
+                    break;
+                }
+            
+                default:
+                    http_response_with_400(http_response);
+            }
         }
         else
 response_401:

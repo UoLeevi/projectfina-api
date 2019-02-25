@@ -46,12 +46,7 @@ static void http_response_get_groups(
     const char *paramValues_get_groups[1] = { user_uuid };
 
     PGresult *groups_res = PQexecParams(pgconn,
-        "SELECT json_build_object('groups', json_agg(t)) json "
-          "FROM ("
-            "SELECT g.uuid, g.name, u_x_g.is_owner "
-            "FROM groups g JOIN users_x_groups u_x_g ON g.uuid = u_x_g.group_uuid "
-            "WHERE u_x_g.user_uuid = $1::uuid"
-          ") t;",
+        "SELECT get_groups_for_user_as_json($1::uuid) json;",
         1, NULL, paramValues_get_groups, NULL, NULL, 0);
 
     if (PQresultStatus(groups_res) != PGRES_TUPLES_OK)

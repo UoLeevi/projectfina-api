@@ -121,62 +121,77 @@ static void http_sess_get_watchlists(
     PQclear(watchlists_res);
 }
 
-void http_server_before_send_response(
+static bool http_request_get_user_uuid(
+    uo_http_request *http_request,
+    char user_uuid[37])
+{
+    char *hdr_authorization = uo_http_msg_get_header(http_request, "authorization");
+    char jwt[0x400];
+
+    if (!hdr_authorization || sscanf(hdr_authorization, "Bearer %1023s", jwt) != 1)
+        return false;
+
+    char *jwt_payload = uo_jwt_decode_payload(NULL, jwt, strlen(jwt));
+    if (!jwt_payload)
+        return false;
+
+    char *jwt_claim_sub = uo_json_find_value(jwt_payload, "sub");
+    if (!jwt_claim_sub)
+        return false;
+
+    memcpy(user_uuid, jwt_claim_sub + 1, 36);
+    user_uuid[36] = '\0';
+
+    return true;
+}
+
+static void http_response_handler_get_user_groups(
     uo_cb *cb)
 {
     uo_http_sess *http_sess = uo_cb_stack_index(cb, 0);
     uo_http_msg *http_request = http_sess->http_request;
     uo_http_msg *http_response = http_sess->http_response;
 
-    const char *uri = uo_http_request_get_uri(http_request);
+    char user_uuid[37];
 
-    uo_http_msg_set_header(http_response, "server", "libuo http");
-    uo_http_msg_set_header(http_response, "access-control-allow-origin", "*");
+    if (http_request_get_user_uuid(http_request, user_uuid))
+        http_sess_get_groups(http_sess, user_uuid);
+    else
+        http_response_with_401(http_response);
+    
+    uo_cb_invoke(cb);
+}
 
-    if (strncmp(uri, "/user/", UO_STRLEN("/user/")) == 0)
-    {
-        char *hdr_authorization = uo_http_msg_get_header(http_request, "authorization");
-        char jwt[0x400];
+static void http_response_handler_get_user_watchlists(
+    uo_cb *cb)
+{
+    uo_http_sess *http_sess = uo_cb_stack_index(cb, 0);
+    uo_http_msg *http_request = http_sess->http_request;
+    uo_http_msg *http_response = http_sess->http_response;
 
-        if (hdr_authorization && sscanf(hdr_authorization, "Bearer %1023s", jwt) == 1)
-        {
-            char *jwt_payload = uo_jwt_decode_payload(NULL, jwt, strlen(jwt));
-            if (!jwt_payload)
-                goto response_401;
+    char user_uuid[37];
 
-            char *jwt_claim_sub = uo_json_find_value(jwt_payload, "sub");
-            if (!jwt_claim_sub)
-                goto response_401;
-
-            char user_uuid[37];
-            memcpy(user_uuid, jwt_claim_sub + 1, 36);
-            user_uuid[36] = '\0';
-
-            switch (uo_http_request_get_method(http_request))
-            {
-                case UO_HTTP_GET:
-                {
-                    if (strcmp(uri, "/user/groups") == 0)
-                        http_sess_get_groups(http_sess, user_uuid);
-                    else if (strcmp(uri, "/user/watchlists") == 0)
-                        http_sess_get_watchlists(http_sess, user_uuid);
-
-                    break;
-                }
-            
-                default:
-                    http_response_with_400(http_response);
-            }
-        }
-        else
-response_401:
-            http_response_with_401(http_response);
-    }
+    if (http_request_get_user_uuid(http_request, user_uuid))
+        http_sess_get_watchlists(http_sess, user_uuid);
+    else
+        http_response_with_401(http_response);
 
     uo_cb_invoke(cb);
 }
 
-void http_server_after_close(
+static void http_server_after_recv_request(
+    uo_cb *cb)
+{
+    uo_http_sess *http_sess = uo_cb_stack_index(cb, 0);
+    uo_http_msg *http_response = http_sess->http_response;
+
+    uo_http_msg_set_header(http_response, "server", "libuo http");
+    uo_http_msg_set_header(http_response, "access-control-allow-origin", "*");
+
+    uo_cb_invoke(cb);
+}
+
+static void http_server_after_close(
     uo_cb *cb)
 {
     uo_http_sess *http_sess = uo_cb_stack_index(cb, 0);
@@ -197,14 +212,19 @@ int main(
 
     uo_conf *conf = uo_conf_create("projectfina-api.conf");
 
-    conninfo = uo_conf_get(conf, "pg.conninfo");
-
-    const char *port = uo_conf_get(conf, "http_server.port");
+    conninfo             = uo_conf_get(conf, "pg.conninfo");
+    const char *port     = uo_conf_get(conf, "http_server.port");
     const char *root_dir = uo_conf_get(conf, "http_server.root_dir");
 
     uo_http_server *http_server = uo_http_server_create(port);
 
-    uo_cb_append(http_server->evt_handlers.before_send_msg, http_server_before_send_response);
+    uo_cb *cb_get_user_groups = uo_cb_create();
+    uo_cb *cb_get_user_watchlists = uo_cb_create();
+
+    uo_http_server_add_request_handler(http_server, UO_HTTP_GET, "/user/groups", cb_get_user_groups);
+    uo_http_server_add_request_handler(http_server, UO_HTTP_GET, "/user/watchlists", cb_get_user_watchlists);
+
+    uo_cb_append(http_server->evt_handlers.after_recv_msg, http_server_after_recv_request);
     uo_cb_append(http_server->evt_handlers.after_close, http_server_after_close);
 
     if (!uo_http_server_set_opt_serve_static_files(http_server, root_dir))
@@ -216,6 +236,9 @@ int main(
     uo_prog_wait_for_sigint();
 
     uo_http_server_destroy(http_server);
+
+    uo_cb_destroy(cb_get_user_groups);
+    uo_cb_destroy(cb_get_user_watchlists);
 
     uo_conf_destroy(conf);
 

@@ -221,6 +221,9 @@ int main(
     uo_cb *cb_get_user_groups = uo_cb_create();
     uo_cb *cb_get_user_watchlists = uo_cb_create();
 
+    uo_cb_append(cb_get_user_groups, http_response_handler_get_user_groups);
+    uo_cb_append(cb_get_user_watchlists, http_response_handler_get_user_watchlists);
+
     uo_http_server_add_request_handler(http_server, UO_HTTP_GET, "/user/groups", cb_get_user_groups);
     uo_http_server_add_request_handler(http_server, UO_HTTP_GET, "/user/watchlists", cb_get_user_watchlists);
 

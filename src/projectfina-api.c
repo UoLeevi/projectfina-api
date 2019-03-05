@@ -46,7 +46,7 @@ static PGconn *http_conn_get_pg_conn(
     {
         char *pg_conninfo = uo_http_conn_get_user_data(http_conn, "pg_conninfo");
         pg_conn = PQconnectdb(pg_conninfo);
-        uo_http_conn_set_user_data(http_conn, "pg_conn", pg_conninfo);
+        uo_http_conn_set_user_data(http_conn, "pg_conn", pg_conn);
     }
 }
 

@@ -211,7 +211,7 @@ int main(
 
     uo_conf *conf = uo_conf_create("projectfina-api.conf");
 
-    char *pg_conninfo = uo_conf_get(conf, "pg.conninfo");
+    const char *pg_conninfo = uo_conf_get(conf, "pg.conninfo");
     const char *port        = uo_conf_get(conf, "http_server.port");
     const char *root_dir    = uo_conf_get(conf, "http_server.root_dir");
 

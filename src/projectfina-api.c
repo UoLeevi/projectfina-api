@@ -48,6 +48,8 @@ static PGconn *http_conn_get_pg_conn(
         pg_conn = PQconnectdb(pg_conninfo);
         uo_http_conn_set_user_data(http_conn, "pg_conn", pg_conn);
     }
+
+    return pg_conn;
 }
 
 static void http_conn_get_groups(

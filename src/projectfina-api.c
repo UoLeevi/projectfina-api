@@ -40,16 +40,34 @@ static void http_res_with_500(
 static PGconn *http_conn_get_pg_conn(
     uo_http_conn *http_conn)
 {
-    PGconn *pg_conn = uo_http_conn_get_user_data(http_conn, "pg_conn");
+    PGconn *pg_conn = uo_http_conn_get_user_data(http_conn, uo_nameof(pg_conn));
 
     if (!pg_conn)
     {
-        char *pg_conninfo = uo_http_conn_get_user_data(http_conn, "pg_conninfo");
+        char *pg_conninfo = uo_http_conn_get_user_data(http_conn, uo_nameof(pg_conninfo));
         pg_conn = PQconnectdb(pg_conninfo);
-        uo_http_conn_set_user_data(http_conn, "pg_conn", pg_conn);
+        uo_http_conn_set_user_data(http_conn, uo_nameof(pg_conn), pg_conn);
     }
 
     return pg_conn;
+}
+
+static void http_res_json_from_pg_res(
+    uo_http_res *http_res,
+    PGresult *pg_res)
+{
+    if (PQresultStatus(pg_res) != PGRES_TUPLES_OK)
+        http_res_with_500(http_res);
+    else
+    {
+        char *json = PQgetvalue(pg_res, 0, 0);
+        size_t json_len = PQgetlength(pg_res, 0, 0);
+
+        uo_http_res_set_status_line(http_res, UO_HTTP_200, UO_HTTP_1_1);
+        uo_http_res_set_content(http_res, json, "application/json", json_len);
+    }
+
+    PQclear(pg_res);
 }
 
 static void http_conn_get_groups(
@@ -73,18 +91,7 @@ static void http_conn_get_groups(
         "SELECT get_groups_for_user_as_json($1::uuid) json;",
         1, NULL, paramValues_get_groups, NULL, NULL, 0);
 
-    if (PQresultStatus(groups_res) != PGRES_TUPLES_OK)
-        http_res_with_500(http_res);
-    else
-    {
-        char *json = PQgetvalue(groups_res, 0, 0);
-        size_t json_len = PQgetlength(groups_res, 0, 0);
-
-        uo_http_res_set_status_line(http_res, UO_HTTP_200, UO_HTTP_1_1);
-        uo_http_res_set_content(http_res, json, "application/json", json_len);
-    }
-
-    PQclear(groups_res);
+    http_res_json_from_pg_res(http_res, groups_res);
 }
 
 static void http_conn_get_watchlists(
@@ -108,18 +115,7 @@ static void http_conn_get_watchlists(
         "SELECT get_watchlists_for_user_as_json($1::uuid) json;",
         1, NULL, paramValues_get_watchlists, NULL, NULL, 0);
 
-    if (PQresultStatus(watchlists_res) != PGRES_TUPLES_OK)
-        http_res_with_500(http_res);
-    else
-    {
-        char *json = PQgetvalue(watchlists_res, 0, 0);
-        size_t json_len = PQgetlength(watchlists_res, 0, 0);
-
-        uo_http_res_set_status_line(http_res, UO_HTTP_200, UO_HTTP_1_1);
-        uo_http_res_set_content(http_res, json, "application/json", json_len);
-    }
-
-    PQclear(watchlists_res);
+    http_res_json_from_pg_res(http_res, watchlists_res);
 }
 
 static bool http_req_get_user_uuid(
@@ -197,7 +193,7 @@ static void http_server_after_close(
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
 
-    PGconn *pg_conn = uo_http_conn_get_user_data(http_conn, "pg_conn");
+    PGconn *pg_conn = uo_http_conn_get_user_data(http_conn, uo_nameof(pg_conn));
 
     if (pg_conn)
         PQfinish(pg_conn);
@@ -219,7 +215,7 @@ int main(
 
     uo_http_server *http_server = uo_http_server_create(port);
 
-    uo_http_server_set_user_data(http_server, "pg_conninfo", pg_conninfo);
+    uo_http_server_set_user_data(http_server, uo_nameof(pg_conninfo), pg_conninfo);
 
     uo_cb *cb_get_user_groups = uo_cb_create();
     uo_cb *cb_get_user_watchlists = uo_cb_create();

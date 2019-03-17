@@ -19,21 +19,21 @@
 static void http_res_with_400(
     uo_http_msg *http_res)
 {
-    uo_http_res_set_status_line(http_res, UO_HTTP_400, UO_HTTP_1_1);
+    uo_http_res_set_status_line(http_res, UO_HTTP_400, UO_HTTP_VER_1_1);
     uo_http_res_set_content(http_res, HTTP_400_JSON, "application/json", UO_STRLEN(HTTP_400_JSON));
 }
 
 static void http_res_with_401(
     uo_http_msg *http_res)
 {
-    uo_http_res_set_status_line(http_res, UO_HTTP_401, UO_HTTP_1_1);
+    uo_http_res_set_status_line(http_res, UO_HTTP_401, UO_HTTP_VER_1_1);
     uo_http_res_set_content(http_res, HTTP_401_JSON, "application/json", UO_STRLEN(HTTP_401_JSON));
 }
 
 static void http_res_with_500(
     uo_http_msg *http_res)
 {
-    uo_http_res_set_status_line(http_res, UO_HTTP_500, UO_HTTP_1_1);
+    uo_http_res_set_status_line(http_res, UO_HTTP_500, UO_HTTP_VER_1_1);
     uo_http_res_set_content(http_res, HTTP_500_JSON, "application/json", UO_STRLEN(HTTP_500_JSON));
 }
 
@@ -63,7 +63,7 @@ static void http_res_json_from_pg_res(
         char *json = PQgetvalue(pg_res, 0, 0);
         size_t json_len = PQgetlength(pg_res, 0, 0);
 
-        uo_http_res_set_status_line(http_res, UO_HTTP_200, UO_HTTP_1_1);
+        uo_http_res_set_status_line(http_res, UO_HTTP_200, UO_HTTP_VER_1_1);
         uo_http_res_set_content(http_res, json, "application/json", json_len);
     }
 
@@ -74,7 +74,7 @@ static void http_conn_get_groups(
     uo_http_conn *http_conn,
     const char *user_uuid)
 {
-    uo_http_msg *http_res = http_conn->http_res;
+    uo_http_msg *http_res = &http_conn->http_res;
     PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
 
     if (PQstatus(pg_conn) == CONNECTION_BAD)
@@ -98,7 +98,7 @@ static void http_conn_get_watchlists(
     uo_http_conn *http_conn,
     const char *user_uuid)
 {
-    uo_http_msg *http_res = http_conn->http_res;
+    uo_http_msg *http_res = &http_conn->http_res;
     PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
 
     if (PQstatus(pg_conn) == CONNECTION_BAD)
@@ -142,36 +142,44 @@ static bool http_req_get_user_uuid(
     return true;
 }
 
-static void http_res_handler_get_user_groups(
+static void http_req_handler_user(
     uo_cb *cb)
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
-    uo_http_msg *http_req = http_conn->http_req;
-    uo_http_msg *http_res = http_conn->http_res;
+    uo_http_msg *http_req = &http_conn->http_req;
 
-    char user_uuid[37];
+    char buf[37];
 
-    if (http_req_get_user_uuid(http_req, user_uuid))
-        http_conn_get_groups(http_conn, user_uuid);
+    if (http_req_get_user_uuid(http_req, buf))
+    {
+        char *user_uuid = strdup(buf);
+        uo_finstack_add(http_req->finstack, user_uuid, free);
+        uo_http_conn_set_user_data(http_conn, uo_nameof(user_uuid), user_uuid);
+    }
     else
-        http_res_with_401(http_res);
+        http_res_with_401(&http_conn->http_res);
     
     uo_cb_invoke(cb);
 }
 
-static void http_res_handler_get_user_watchlists(
+static void http_req_handler_get_user_groups(
     uo_cb *cb)
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
-    uo_http_msg *http_req = http_conn->http_req;
-    uo_http_msg *http_res = http_conn->http_res;
 
-    char user_uuid[37];
+    char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
+    http_conn_get_groups(http_conn, user_uuid);
 
-    if (http_req_get_user_uuid(http_req, user_uuid))
-        http_conn_get_watchlists(http_conn, user_uuid);
-    else
-        http_res_with_401(http_res);
+    uo_cb_invoke(cb);
+}
+
+static void http_req_handler_get_user_watchlists(
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+
+    char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
+    http_conn_get_watchlists(http_conn, user_uuid);
 
     uo_cb_invoke(cb);
 }
@@ -180,7 +188,7 @@ static void http_server_after_recv_request(
     uo_cb *cb)
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
-    uo_http_msg *http_res = http_conn->http_res;
+    uo_http_msg *http_res = &http_conn->http_res;
 
     uo_http_msg_set_header(http_res, "server", "libuo http");
     uo_http_msg_set_header(http_res, "access-control-allow-origin", "*");
@@ -217,14 +225,10 @@ int main(
 
     uo_http_server_set_user_data(http_server, uo_nameof(pg_conninfo), pg_conninfo);
 
-    uo_cb *cb_get_user_groups = uo_cb_create();
-    uo_cb *cb_get_user_watchlists = uo_cb_create();
+    uo_http_server_set_req_prefix_handler(http_server, "GET /user", http_req_handler_user);
 
-    uo_cb_append(cb_get_user_groups, http_res_handler_get_user_groups);
-    uo_cb_append(cb_get_user_watchlists, http_res_handler_get_user_watchlists);
-
-    uo_http_server_add_request_handler(http_server, UO_HTTP_GET, "/user/groups", cb_get_user_groups);
-    uo_http_server_add_request_handler(http_server, UO_HTTP_GET, "/user/watchlists", cb_get_user_watchlists);
+    uo_http_server_set_req_exact_handler(http_server, "GET /user/groups", http_req_handler_get_user_groups);
+    uo_http_server_set_req_exact_handler(http_server, "GET /user/watchlists", http_req_handler_get_user_watchlists);
 
     uo_cb_append(http_server->evt_handlers.after_recv_msg, http_server_after_recv_request);
     uo_cb_append(http_server->evt_handlers.after_close, http_server_after_close);
@@ -238,9 +242,6 @@ int main(
     uo_prog_wait_for_sigint();
 
     uo_http_server_destroy(http_server);
-
-    uo_cb_destroy(cb_get_user_groups);
-    uo_cb_destroy(cb_get_user_watchlists);
 
     uo_conf_destroy(conf);
 

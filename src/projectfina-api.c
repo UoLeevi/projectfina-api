@@ -138,7 +138,7 @@ static void http_conn_create_note(
 
     PGresult *notes_res = PQexecParams(pg_conn,
         "SELECT create_note($1::uuid, $2::text) note_uuid;",
-        1, NULL, paramValues_create_note, NULL, NULL, 0);
+        2, NULL, paramValues_create_note, NULL, NULL, 0);
 
     if (PQresultStatus(notes_res) != PGRES_TUPLES_OK || PQgetlength(notes_res, 0, 0) != 36)
         http_res_with_500(http_res);

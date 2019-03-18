@@ -118,6 +118,44 @@ static void http_conn_get_watchlists(
     http_res_json_from_pg_res(http_res, watchlists_res);
 }
 
+static void http_conn_create_note(
+    uo_http_conn *http_conn,
+    const char *user_uuid,
+    const char *body)
+{
+    uo_http_msg *http_res = &http_conn->http_res;
+    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
+
+    if (PQstatus(pg_conn) == CONNECTION_BAD)
+    {
+        fprintf(stderr, "%s\n", PQerrorMessage(pg_conn));
+        http_res_with_500(http_res);
+        uo_http_conn_next_close(http_conn);
+        return;
+    }
+
+    const char *paramValues_create_note[2] = { user_uuid, body };
+
+    PGresult *notes_res = PQexecParams(pg_conn,
+        "SELECT create_note($1::uuid, $2::text) note_uuid;",
+        1, NULL, paramValues_create_note, NULL, NULL, 0);
+
+    if (PQresultStatus(notes_res) != PGRES_TUPLES_OK || PQgetlength(notes_res, 0, 0) != 36)
+        http_res_with_500(http_res);
+    else
+    {
+        char *note_uuid = PQgetvalue(notes_res, 0, 0);
+
+        uo_http_res_set_status_line(http_res, UO_HTTP_200, UO_HTTP_VER_1_1);
+        char json[0x40];
+        size_t json_len = sprintf(json, "{ \"note_uuid\": \"%s\" }", note_uuid);
+
+        uo_http_res_set_content(http_res, json, "application/json", json_len);
+    }
+
+    PQclear(notes_res);
+}
+
 static bool http_req_get_user_uuid(
     uo_http_req *http_req,
     char user_uuid[37])
@@ -184,6 +222,31 @@ static void http_req_handler_get_user_watchlists(
     uo_cb_invoke(cb);
 }
 
+static void http_req_handler_post_user_notes(
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+
+    char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
+    char *note_body = uo_json_find_value(http_conn->http_req.body, "body");
+
+    if (note_body)
+    {
+        char *note_body_end = uo_json_find_end(note_body);
+
+        if (note_body_end && 
+            (note_body_end = uo_json_decode_utf8(note_body, note_body, note_body_end - note_body)))
+        {
+            *note_body_end = '\0';
+            http_conn_create_note(http_conn, user_uuid, note_body);
+        }
+        else
+            http_res_with_400(&http_conn->http_res);
+    }
+
+    uo_cb_invoke(cb);
+}
+
 static void http_server_after_recv_request(
     uo_cb *cb)
 {
@@ -226,9 +289,12 @@ int main(
     uo_http_server_set_user_data(http_server, uo_nameof(pg_conninfo), pg_conninfo);
 
     uo_http_server_set_req_prefix_handler(http_server, "GET /user", http_req_handler_user);
+    uo_http_server_set_req_prefix_handler(http_server, "POST /user", http_req_handler_user);
 
     uo_http_server_set_req_exact_handler(http_server, "GET /user/groups", http_req_handler_get_user_groups);
     uo_http_server_set_req_exact_handler(http_server, "GET /user/watchlists", http_req_handler_get_user_watchlists);
+
+    uo_http_server_set_req_exact_handler(http_server, "POST /user/notes", http_req_handler_post_user_notes);
 
     uo_cb_append(http_server->evt_handlers.after_recv_msg, http_server_after_recv_request);
     uo_cb_append(http_server->evt_handlers.after_close, http_server_after_close);

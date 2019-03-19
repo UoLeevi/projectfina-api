@@ -247,6 +247,70 @@ static void http_req_handler_post_user_notes(
     uo_cb_invoke(cb);
 }
 
+static void http_conn_get_instruments(
+    uo_http_conn *http_conn,
+    const char *mic)
+{
+    uo_http_msg *http_res = &http_conn->http_res;
+    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
+
+    if (PQstatus(pg_conn) == CONNECTION_BAD)
+    {
+        fprintf(stderr, "%s\n", PQerrorMessage(pg_conn));
+        http_res_with_500(http_res);
+        uo_http_conn_next_close(http_conn);
+        return;
+    }
+
+    const char *paramValues_get_instruments[1] = { mic };
+
+    PGresult *instruments_res = PQexecParams(pg_conn,
+        "SELECT get_instruments_for_market_by_mic_as_json($1::text) json;",
+        1, NULL, paramValues_get_instruments, NULL, NULL, 0);
+
+    http_res_json_from_pg_res(http_res, instruments_res);
+}
+
+static void http_req_handler_get_markets_instruments(
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+
+    char *mic = uo_http_conn_get_user_data(http_conn, uo_nameof(mic));
+    http_conn_get_instruments(http_conn, mic);
+
+    uo_cb_invoke(cb);
+}
+
+static void http_req_handler_markets(
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+    uo_http_msg *http_req = &http_conn->http_req;
+
+    char mic[5];
+
+    if (sscanf(http_req->uri, "/v01/markets/%4s", mic) == 1)
+    {
+        uo_http_conn_set_user_data(http_conn, uo_nameof(mic), mic);
+
+        char *markets_endpoint = uo_strchrnth(http_req->uri, '/', 4);
+
+        if (uo_streq(markets_endpoint, "/instruments"))
+            http_req_handler_get_markets_instruments(cb);
+        else
+        {
+            http_res_with_400(&http_conn->http_res);
+            uo_cb_invoke(cb);
+        }
+    }
+    else
+    {
+        http_res_with_400(&http_conn->http_res);
+        uo_cb_invoke(cb);
+    }
+}
+
 static void http_server_after_recv_request(
     uo_cb *cb)
 {
@@ -288,6 +352,7 @@ int main(
 
     uo_http_server_set_user_data(http_server, uo_nameof(pg_conninfo), pg_conninfo);
 
+    // request handlers for /user
     uo_http_server_set_req_prefix_handler(http_server, "GET /user", http_req_handler_user);
     uo_http_server_set_req_prefix_handler(http_server, "POST /user", http_req_handler_user);
 
@@ -295,6 +360,9 @@ int main(
     uo_http_server_set_req_exact_handler(http_server, "GET /user/watchlists", http_req_handler_get_user_watchlists);
 
     uo_http_server_set_req_exact_handler(http_server, "POST /user/notes", http_req_handler_post_user_notes);
+
+    //request handlers for /v01/markets
+    uo_http_server_set_req_prefix_handler(http_server, "GET /v01/markets", http_req_handler_markets);
 
     uo_cb_append(http_server->evt_handlers.after_recv_msg, http_server_after_recv_request);
     uo_cb_append(http_server->evt_handlers.after_close, http_server_after_close);

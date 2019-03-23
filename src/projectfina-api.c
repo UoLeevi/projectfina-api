@@ -247,6 +247,31 @@ static void http_req_handler_post_user_notes(
     uo_cb_invoke(cb);
 }
 
+static void http_req_handler_get_markets(
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+    uo_http_msg *http_res = &http_conn->http_res;
+    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
+
+    if (PQstatus(pg_conn) == CONNECTION_BAD)
+    {
+        fprintf(stderr, "%s\n", PQerrorMessage(pg_conn));
+        http_res_with_500(http_res);
+        uo_http_conn_next_close(http_conn);
+    }
+    else
+    {
+        PGresult *instruments_res = PQexecParams(pg_conn,
+            "SELECT get_markets_as_json() json;",
+            0, NULL, NULL, NULL, NULL, 0);
+
+        http_res_json_from_pg_res(http_res, instruments_res);
+    }
+
+    uo_cb_invoke(cb);
+}
+
 static void http_conn_get_instruments(
     uo_http_conn *http_conn,
     const char *mic)
@@ -332,6 +357,7 @@ int main(
     uo_http_server_add_req_handler(http_server, "POST /user/notes", http_req_handler_post_user_notes);
 
     //request handlers for /v01/markets/
+    uo_http_server_add_req_handler(http_server, "GET /v01/markets", http_req_handler_get_markets);
     uo_http_server_add_req_handler(http_server, "GET /v01/markets/{mic}/instruments", http_req_handler_get_markets_instruments);
 
     uo_cb_append(http_server->evt_handlers.after_recv_msg, http_server_after_recv_request);

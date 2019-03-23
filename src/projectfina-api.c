@@ -363,7 +363,7 @@ int main(
     uo_cb_append(http_server->evt_handlers.after_recv_msg, http_server_after_recv_request);
     uo_cb_append(http_server->evt_handlers.after_close, http_server_after_close);
 
-    if (!uo_http_server_set_opt_serve_static_files(http_server, root_dir))
+    if (!uo_http_server_set_opt_serve_static_files(http_server, root_dir, 0xA00000))
         uo_err_exit("Error while setting root directory.");
 
     uo_http_server_start(http_server);

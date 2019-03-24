@@ -191,7 +191,7 @@ static void http_req_handler_user(
     if (http_req_get_user_uuid(http_req, buf))
     {
         char *user_uuid = strdup(buf);
-        uo_finstack_add(http_req->finstack, user_uuid, free);
+        uo_refstack_push(&http_req->refstack, user_uuid, free);
         uo_http_conn_set_user_data(http_conn, uo_nameof(user_uuid), user_uuid);
     }
     else

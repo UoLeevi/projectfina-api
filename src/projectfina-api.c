@@ -228,21 +228,12 @@ static void http_req_handler_post_user_notes(
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
 
     char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
-    char *note_body = uo_json_find_value(http_conn->http_req.body, "body");
+    char *note_body = uo_http_conn_get_req_data(http_conn, "body");
 
     if (note_body)
-    {
-        char *note_body_end = uo_json_find_end(note_body);
-
-        if (note_body_end && 
-            (note_body_end = uo_json_decode_utf8(note_body, note_body, note_body_end - note_body)))
-        {
-            *note_body_end = '\0';
-            http_conn_create_note(http_conn, user_uuid, note_body);
-        }
-        else
-            http_res_with_400(&http_conn->http_res);
-    }
+        http_conn_create_note(http_conn, user_uuid, note_body);
+    else
+        http_res_with_400(&http_conn->http_res);
 
     uo_cb_invoke(cb);
 }

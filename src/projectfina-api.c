@@ -167,9 +167,8 @@ static void http_req_handler_post_user_notes(
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
 
-    char *note_body = uo_http_conn_get_req_data(http_conn, uo_nameof(note_body));
-
-    if (note_body)
+    char *body = uo_http_conn_get_req_data(http_conn, uo_nameof(body));
+    if (body)
     {
         PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
         if (pg_conn)
@@ -178,7 +177,7 @@ static void http_req_handler_post_user_notes(
 
             PGresult *notes_res = PQexecParams(pg_conn,
                 "SELECT create_note($1::uuid, $2::text) note_uuid;",
-                2, NULL, (const char *[2]) { user_uuid, note_body }, NULL, NULL, 0);
+                2, NULL, (const char *[2]) { user_uuid, body }, NULL, NULL, 0);
 
             if (PQresultStatus(notes_res) != PGRES_TUPLES_OK || PQgetlength(notes_res, 0, 0) != 36)
                 http_res_with_500(&http_conn->http_res);

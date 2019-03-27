@@ -49,6 +49,14 @@ static PGconn *http_conn_get_pg_conn(
         uo_http_conn_set_user_data(http_conn, uo_nameof(pg_conn), pg_conn);
     }
 
+    if (PQstatus(pg_conn) == CONNECTION_BAD)
+    {
+        fprintf(stderr, "%s\n", PQerrorMessage(pg_conn));
+        http_res_with_500(&http_conn->http_res);
+        uo_http_conn_next_close(http_conn);
+        return NULL;
+    }
+
     return pg_conn;
 }
 
@@ -68,92 +76,6 @@ static void http_res_json_from_pg_res(
     }
 
     PQclear(pg_res);
-}
-
-static void http_conn_get_groups(
-    uo_http_conn *http_conn,
-    const char *user_uuid)
-{
-    uo_http_msg *http_res = &http_conn->http_res;
-    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
-
-    if (PQstatus(pg_conn) == CONNECTION_BAD)
-    {
-        fprintf(stderr, "%s\n", PQerrorMessage(pg_conn));
-        http_res_with_500(http_res);
-        uo_http_conn_next_close(http_conn);
-        return;
-    }
-
-    const char *paramValues_get_groups[1] = { user_uuid };
-
-    PGresult *groups_res = PQexecParams(pg_conn,
-        "SELECT get_groups_for_user_as_json($1::uuid) json;",
-        1, NULL, paramValues_get_groups, NULL, NULL, 0);
-
-    http_res_json_from_pg_res(http_res, groups_res);
-}
-
-static void http_conn_get_watchlists(
-    uo_http_conn *http_conn,
-    const char *user_uuid)
-{
-    uo_http_msg *http_res = &http_conn->http_res;
-    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
-
-    if (PQstatus(pg_conn) == CONNECTION_BAD)
-    {
-        fprintf(stderr, "%s\n", PQerrorMessage(pg_conn));
-        http_res_with_500(http_res);
-        uo_http_conn_next_close(http_conn);
-        return;
-    }
-
-    const char *paramValues_get_watchlists[1] = { user_uuid };
-
-    PGresult *watchlists_res = PQexecParams(pg_conn,
-        "SELECT get_watchlists_for_user_as_json($1::uuid) json;",
-        1, NULL, paramValues_get_watchlists, NULL, NULL, 0);
-
-    http_res_json_from_pg_res(http_res, watchlists_res);
-}
-
-static void http_conn_create_note(
-    uo_http_conn *http_conn,
-    const char *user_uuid,
-    const char *body)
-{
-    uo_http_msg *http_res = &http_conn->http_res;
-    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
-
-    if (PQstatus(pg_conn) == CONNECTION_BAD)
-    {
-        fprintf(stderr, "%s\n", PQerrorMessage(pg_conn));
-        http_res_with_500(http_res);
-        uo_http_conn_next_close(http_conn);
-        return;
-    }
-
-    const char *paramValues_create_note[2] = { user_uuid, body };
-
-    PGresult *notes_res = PQexecParams(pg_conn,
-        "SELECT create_note($1::uuid, $2::text) note_uuid;",
-        2, NULL, paramValues_create_note, NULL, NULL, 0);
-
-    if (PQresultStatus(notes_res) != PGRES_TUPLES_OK || PQgetlength(notes_res, 0, 0) != 36)
-        http_res_with_500(http_res);
-    else
-    {
-        char *note_uuid = PQgetvalue(notes_res, 0, 0);
-
-        uo_http_res_set_status_line(http_res, UO_HTTP_200, UO_HTTP_VER_1_1);
-        char json[0x40];
-        size_t json_len = sprintf(json, "{ \"note_uuid\": \"%s\" }", note_uuid);
-
-        uo_http_res_set_content(http_res, json, "application/json", json_len);
-    }
-
-    PQclear(notes_res);
 }
 
 static bool http_req_get_user_uuid(
@@ -205,8 +127,17 @@ static void http_req_handler_get_user_groups(
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
 
-    char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
-    http_conn_get_groups(http_conn, user_uuid);
+    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
+    if (pg_conn)
+    {
+        char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
+
+        PGresult *groups_res = PQexecParams(pg_conn,
+            "SELECT get_groups_for_user_as_json($1::uuid) json;",
+            1, NULL, (const char *[1]) { user_uuid }, NULL, NULL, 0);
+
+        http_res_json_from_pg_res(&http_conn->http_res, groups_res);
+    }
 
     uo_cb_invoke(cb);
 }
@@ -216,8 +147,17 @@ static void http_req_handler_get_user_watchlists(
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
 
-    char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
-    http_conn_get_watchlists(http_conn, user_uuid);
+    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
+    if (pg_conn)
+    {
+        char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
+
+        PGresult *watchlists_res = PQexecParams(pg_conn,
+            "SELECT get_watchlists_for_user_as_json($1::uuid) json;",
+            1, NULL, (const char *[1]) { user_uuid }, NULL, NULL, 0);
+
+        http_res_json_from_pg_res(&http_conn->http_res, watchlists_res);
+    }
 
     uo_cb_invoke(cb);
 }
@@ -227,13 +167,53 @@ static void http_req_handler_post_user_notes(
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
 
-    char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
-    char *note_body = uo_http_conn_get_req_data(http_conn, "body");
+    char *note_body = uo_http_conn_get_req_data(http_conn, uo_nameof(note_body));
 
     if (note_body)
-        http_conn_create_note(http_conn, user_uuid, note_body);
+    {
+        PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
+        if (pg_conn)
+        {
+            char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
+
+            PGresult *notes_res = PQexecParams(pg_conn,
+                "SELECT create_note($1::uuid, $2::text) note_uuid;",
+                2, NULL, (const char *[2]) { user_uuid, note_body }, NULL, NULL, 0);
+
+            if (PQresultStatus(notes_res) != PGRES_TUPLES_OK || PQgetlength(notes_res, 0, 0) != 36)
+                http_res_with_500(&http_conn->http_res);
+            else
+            {
+                char *note_uuid = PQgetvalue(notes_res, 0, 0);
+
+                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_200, UO_HTTP_VER_1_1);
+                char json[0x40];
+                size_t json_len = sprintf(json, "{ \"note_uuid\": \"%s\" }", note_uuid);
+
+                uo_http_res_set_content(&http_conn->http_res, json, "application/json", json_len);
+            }
+
+            PQclear(notes_res);
+        }
+    }
     else
         http_res_with_400(&http_conn->http_res);
+
+    uo_cb_invoke(cb);
+}
+
+static void http_req_handler_post_add_note_to_instrument(
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+
+    char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
+    char *note_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(note_uuid));
+    char *instrument_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(instrument_uuid));
+
+    // TODO
+    // 1. Check if user has created the note
+    // 2. Add the note to the instrument
 
     uo_cb_invoke(cb);
 }
@@ -242,49 +222,18 @@ static void http_req_handler_get_markets(
     uo_cb *cb)
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
-    uo_http_msg *http_res = &http_conn->http_res;
-    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
 
-    if (PQstatus(pg_conn) == CONNECTION_BAD)
-    {
-        fprintf(stderr, "%s\n", PQerrorMessage(pg_conn));
-        http_res_with_500(http_res);
-        uo_http_conn_next_close(http_conn);
-    }
-    else
+    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
+    if (pg_conn)
     {
         PGresult *instruments_res = PQexecParams(pg_conn,
             "SELECT get_markets_as_json() json;",
             0, NULL, NULL, NULL, NULL, 0);
 
-        http_res_json_from_pg_res(http_res, instruments_res);
+        http_res_json_from_pg_res(&http_conn->http_res, instruments_res);
     }
 
     uo_cb_invoke(cb);
-}
-
-static void http_conn_get_instruments(
-    uo_http_conn *http_conn,
-    const char *mic)
-{
-    uo_http_msg *http_res = &http_conn->http_res;
-    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
-
-    if (PQstatus(pg_conn) == CONNECTION_BAD)
-    {
-        fprintf(stderr, "%s\n", PQerrorMessage(pg_conn));
-        http_res_with_500(http_res);
-        uo_http_conn_next_close(http_conn);
-        return;
-    }
-
-    const char *paramValues_get_instruments[1] = { mic };
-
-    PGresult *instruments_res = PQexecParams(pg_conn,
-        "SELECT get_instruments_for_market_by_mic_as_json($1::text) json;",
-        1, NULL, paramValues_get_instruments, NULL, NULL, 0);
-
-    http_res_json_from_pg_res(http_res, instruments_res);
 }
 
 static void http_req_handler_get_markets_instruments(
@@ -292,8 +241,17 @@ static void http_req_handler_get_markets_instruments(
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
 
-    char *mic = uo_http_conn_get_req_data(http_conn, uo_nameof(mic));
-    http_conn_get_instruments(http_conn, mic);
+    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
+    if (pg_conn)
+    {
+        char *mic = uo_http_conn_get_req_data(http_conn, uo_nameof(mic));
+
+        PGresult *instruments_res = PQexecParams(pg_conn,
+            "SELECT get_instruments_for_market_by_mic_as_json($1::text) json;",
+            1, NULL, (const char *[1]) { mic }, NULL, NULL, 0);
+
+        http_res_json_from_pg_res(&http_conn->http_res, instruments_res);
+    }
 
     uo_cb_invoke(cb);
 }
@@ -346,6 +304,7 @@ int main(
     uo_http_server_add_req_handler(http_server, "GET /user/groups", http_req_handler_get_user_groups);
     uo_http_server_add_req_handler(http_server, "GET /user/watchlists", http_req_handler_get_user_watchlists);
     uo_http_server_add_req_handler(http_server, "POST /user/notes", http_req_handler_post_user_notes);
+    uo_http_server_add_req_handler(http_server, "POST /user/notes/{note_uuid}/instruments/{instrument_uuid}/", http_req_handler_post_add_note_to_instrument);
 
     //request handlers for /v01/markets/
     uo_http_server_add_req_handler(http_server, "GET /v01/markets", http_req_handler_get_markets);

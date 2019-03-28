@@ -185,10 +185,9 @@ static void http_req_handler_post_user_notes(
             {
                 char *note_uuid = PQgetvalue(notes_res, 0, 0);
 
-                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_200, UO_HTTP_VER_1_1);
+                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_201, UO_HTTP_VER_1_1);
                 char json[0x40];
                 size_t json_len = sprintf(json, "{ \"note_uuid\": \"%s\" }", note_uuid);
-
                 uo_http_res_set_content(&http_conn->http_res, json, "application/json", json_len);
             }
 
@@ -201,7 +200,7 @@ static void http_req_handler_post_user_notes(
     uo_cb_invoke(cb);
 }
 
-static void http_req_handler_post_add_note_to_instrument(
+static void http_req_handler_put_add_note_to_instrument(
     uo_cb *cb)
 {
     uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
@@ -210,9 +209,40 @@ static void http_req_handler_post_add_note_to_instrument(
     char *note_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(note_uuid));
     char *instrument_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(instrument_uuid));
 
-    // TODO
-    // 1. Check if user has created the note
-    // 2. Add the note to the instrument
+    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
+    if (pg_conn)
+    {
+        PGresult *owner_res = PQexecParams(pg_conn,
+            "SELECT EXISTS(SELECT 1 FROM notes WHERE uuid = $1::uuid AND created_by_user_uuid = $2::uuid);",
+            2, NULL, (const char *[2]) { note_uuid, user_uuid }, NULL, NULL, 0);
+
+        if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
+            http_res_with_500(&http_conn->http_res);
+        else if (*PQgetvalue(owner_res, 0, 0) != 't')
+            http_res_with_401(&http_conn->http_res);
+        else
+        {
+            PGresult *add_note_res = PQexecParams(pg_conn,
+                "SELECT add_note_to_instrument($1::uuid, $2::uuid) note_x_instrument_uuid;",
+                2, NULL, (const char *[2]) { note_uuid, instrument_uuid }, NULL, NULL, 0);
+
+            if (PQresultStatus(add_note_res) != PGRES_TUPLES_OK || PQgetlength(add_note_res, 0, 0) != 36)
+                http_res_with_500(&http_conn->http_res);
+            else
+            {
+                char *note_x_instrument_uuid = PQgetvalue(add_note_res, 0, 0);
+
+                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_200, UO_HTTP_VER_1_1);
+                char json[0x4D];
+                size_t json_len = sprintf(json, "{ \"note_x_instrument_uuid\": \"%s\" }", note_x_instrument_uuid);
+                uo_http_res_set_content(&http_conn->http_res, json, "application/json", json_len);
+            }
+
+            PQclear(add_note_res);
+        }
+
+        PQclear(owner_res);
+    }
 
     uo_cb_invoke(cb);
 }
@@ -303,7 +333,7 @@ int main(
     uo_http_server_add_req_handler(http_server, "GET /user/groups", http_req_handler_get_user_groups);
     uo_http_server_add_req_handler(http_server, "GET /user/watchlists", http_req_handler_get_user_watchlists);
     uo_http_server_add_req_handler(http_server, "POST /user/notes", http_req_handler_post_user_notes);
-    uo_http_server_add_req_handler(http_server, "POST /user/notes/{note_uuid}/instruments/{instrument_uuid}/", http_req_handler_post_add_note_to_instrument);
+    uo_http_server_add_req_handler(http_server, "PUT /user/notes/{note_uuid}/instruments/{instrument_uuid}/", http_req_handler_put_add_note_to_instrument);
 
     //request handlers for /v01/markets/
     uo_http_server_add_req_handler(http_server, "GET /v01/markets", http_req_handler_get_markets);

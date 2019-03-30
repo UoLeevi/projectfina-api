@@ -390,6 +390,7 @@ int main(
     uo_http_server_add_req_handler(http_server, "GET /user/*", http_req_handler_user);
     uo_http_server_add_req_handler(http_server, "POST /user/*", http_req_handler_user);
     uo_http_server_add_req_handler(http_server, "PUT /user/*", http_req_handler_user);
+    uo_http_server_add_req_handler(http_server, "DELETE /user/*", http_req_handler_user);
 
     uo_http_server_add_req_handler(http_server, "GET /user/groups", http_req_handler_get_user_groups);
     uo_http_server_add_req_handler(http_server, "GET /user/watchlists", http_req_handler_get_user_watchlists);

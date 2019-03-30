@@ -293,7 +293,7 @@ static void http_req_handler_delete_note(
                 "SELECT delete_note($1::uuid);",
                 1, NULL, (const char *[1]) { note_uuid }, NULL, NULL, 0);
 
-            if (PQresultStatus(delete_note_res) != PGRES_COMMAND_OK)
+            if (PQresultStatus(delete_note_res) != PGRES_TUPLES_OK)
                 http_res_with_500(&http_conn->http_res);
             else
                 uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_204, UO_HTTP_VER_1_1);

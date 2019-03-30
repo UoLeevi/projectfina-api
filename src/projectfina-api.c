@@ -162,6 +162,27 @@ static void http_req_handler_get_user_watchlists(
     uo_cb_invoke(cb);
 }
 
+static void http_req_handler_get_user_notes_for_instrument(
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+
+    PGconn *pg_conn = http_conn_get_pg_conn(http_conn);
+    if (pg_conn)
+    {
+        char *user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(user_uuid));
+        char *instrument_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(instrument_uuid));
+
+        PGresult *notes_res = PQexecParams(pg_conn,
+            "SELECT get_notes_for_instrument_by_user_uuid_as_json($1::uuid, $2::uuid) json;",
+            2, NULL, (const char *[2]) { instrument_uuid, user_uuid }, NULL, NULL, 0);
+
+        http_res_json_from_pg_res(&http_conn->http_res, notes_res);
+    }
+
+    uo_cb_invoke(cb);
+}
+
 static void http_req_handler_post_user_notes(
     uo_cb *cb)
 {
@@ -333,6 +354,7 @@ int main(
 
     uo_http_server_add_req_handler(http_server, "GET /user/groups", http_req_handler_get_user_groups);
     uo_http_server_add_req_handler(http_server, "GET /user/watchlists", http_req_handler_get_user_watchlists);
+    uo_http_server_add_req_handler(http_server, "GET /user/instruments/{instrument_uuid}/notes", http_req_handler_get_user_notes_for_instrument);
     uo_http_server_add_req_handler(http_server, "POST /user/notes", http_req_handler_post_user_notes);
     uo_http_server_add_req_handler(http_server, "PUT /user/notes/{note_uuid}/instruments/{instrument_uuid}/", http_req_handler_put_add_note_to_instrument);
 

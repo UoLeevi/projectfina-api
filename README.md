@@ -21,6 +21,9 @@ Get a list of notes for an instrument.
 `PUT /v01/instruments/{instrument_uuid}/notes/{note_uuid}/`  
 Add a note to instrument.
 
+`DELETE /v01/instruments/{instrument_uuid}/notes/{note_uuid}/`  
+Remove a note from instrument.
+
 ### notes
 
 `GET /v01/notes/`  
@@ -39,9 +42,6 @@ Get a list of watchlists for current user.
 
 `GET /v01/watchlists/{watchlist_uuid}/instruments/`  
 Get a list of instruments for a watchlist.  
-
-`GET /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/`  
-Get an instrument for a watchlist.  
 
 `GET /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/`  
 Get a list of notes for an instrument on a watchlist.  
@@ -74,6 +74,9 @@ Get a list of users for group.
 
 `GET /v01/groups/{group_uuid}/watchlists/`  
 Get a list of watchlists for group.
+
+`POST /v01/groups/`  
+Create a group.
 
 `PUT /v01/groups/{group_uuid}/users/{user_uuid}/`  
 Add a user for group.

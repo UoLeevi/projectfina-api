@@ -19,7 +19,18 @@ if(NOT TARGET uo::uo_prog)
 endif()
 
 add_executable(projectfina-api
-    projectfina-api.c)
+    projectfina-api.c
+    uo_http_util.c
+    uo_pg.c
+    v01/groups.c
+    v01/instruments.c
+    v01/markets.c
+    v01/notes.c
+    v01/watchlists.c)
+
+target_include_directories(projectfina-api
+    PRIVATE
+        include)
 
 target_link_libraries(projectfina-api
     PRIVATE

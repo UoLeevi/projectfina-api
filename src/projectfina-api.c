@@ -247,17 +247,10 @@ static void http_req_handler_put_add_note_to_instrument(
                 "SELECT add_note_to_instrument($1::uuid, $2::uuid) note_x_instrument_uuid;",
                 2, NULL, (const char *[2]) { note_uuid, instrument_uuid }, NULL, NULL, 0);
 
-            if (PQresultStatus(add_note_res) != PGRES_TUPLES_OK || PQgetlength(add_note_res, 0, 0) != 36)
+            if (PQresultStatus(add_note_res) != PGRES_TUPLES_OK)
                 http_res_with_500(&http_conn->http_res);
             else
-            {
-                char *note_x_instrument_uuid = PQgetvalue(add_note_res, 0, 0);
-
-                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_200, UO_HTTP_VER_1_1);
-                char json[0x4D];
-                size_t json_len = sprintf(json, "{ \"note_x_instrument_uuid\": \"%s\" }", note_x_instrument_uuid);
-                uo_http_res_set_content(&http_conn->http_res, json, "application/json", json_len);
-            }
+                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_204, UO_HTTP_VER_1_1);
 
             PQclear(add_note_res);
         }

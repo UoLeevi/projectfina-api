@@ -33,7 +33,7 @@ void v01_get_groups_users(
     if (pg_conn)
     {
         char *jwt_user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(jwt_user_uuid));
-        char *group_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(note_uuid));
+        char *group_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(group_uuid));
 
         PGresult *member_res = PQexecParams(pg_conn,
             "SELECT EXISTS(SELECT 1 FROM users_x_groups WHERE user_uuid = $1::uuid AND group_uuid = $2::uuid);",
@@ -68,7 +68,7 @@ void v01_get_groups_watchlists(
     if (pg_conn)
     {
         char *jwt_user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(jwt_user_uuid));
-        char *group_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(note_uuid));
+        char *group_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(group_uuid));
 
         PGresult *member_res = PQexecParams(pg_conn,
             "SELECT EXISTS(SELECT 1 FROM users_x_groups WHERE user_uuid = $1::uuid AND group_uuid = $2::uuid);",
@@ -135,11 +135,112 @@ void v01_post_groups(
 
 // PUT /v01/groups/{group_uuid}/users/{user_uuid}/
 void v01_put_groups_users(
-    uo_cb *cb);
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+    PGconn *pg_conn = uo_pg_http_conn_get_pg_conn(http_conn);
+
+    if (pg_conn)
+    {
+        char *jwt_user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(jwt_user_uuid));
+        char *group_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(group_uuid));
+        char *user_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(user_uuid));
+
+        PGresult *owner_res = PQexecParams(pg_conn,
+            "SELECT EXISTS("
+                "SELECT 1 FROM users_x_groups u_x_g"
+                " WHERE u_x_g.group_uuid = $1::uuid"
+                " AND u_x_g.user_uuid = $2::uuid"
+                " AND u_x_g.is_owner"
+            ");",
+            2, NULL, (const char *[2]) { group_uuid, jwt_user_uuid }, NULL, NULL, 0);
+
+        if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
+            http_res_with_500(&http_conn->http_res);
+        else if (*PQgetvalue(owner_res, 0, 0) != 't')
+            http_res_with_401(&http_conn->http_res);
+        else
+        {
+            PGresult *add_user_res = PQexecParams(pg_conn,
+                "SELECT add_user_to_group($1::uuid, $2::uuid);",
+                2, NULL, (const char *[2]) { user_uuid, group_uuid }, NULL, NULL, 0);
+
+            if (PQresultStatus(add_user_res) != PGRES_TUPLES_OK)
+                http_res_with_500(&http_conn->http_res);
+            else
+                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_204, UO_HTTP_VER_1_1);
+
+            PQclear(add_user_res);
+        }
+
+        PQclear(owner_res);
+    }
+
+    uo_cb_invoke(cb);
+}
 
 // PUT /v01/groups/{group_uuid}/watchlists/{watchlist_uuid}/
 void v01_put_groups_watchlists(
-    uo_cb *cb);
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+    PGconn *pg_conn = uo_pg_http_conn_get_pg_conn(http_conn);
+
+    if (pg_conn)
+    {
+        char *jwt_user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(jwt_user_uuid));
+        char *watchlist_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(watchlist_uuid));
+        char *group_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(group_uuid));
+
+        PGresult *owner_res = PQexecParams(pg_conn,
+            "SELECT EXISTS("
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
+                " WHERE watchlist_uuid = $2::uuid"
+                " AND user_is_owner"
+            ");",
+            2, NULL, (const char *[2]) { watchlist_uuid, jwt_user_uuid }, NULL, NULL, 0);
+
+        if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
+            http_res_with_500(&http_conn->http_res);
+        else if (*PQgetvalue(owner_res, 0, 0) != 't')
+            http_res_with_401(&http_conn->http_res);
+        else
+        {
+            PQclear(owner_res);
+            owner_res = PQexecParams(pg_conn,
+                "SELECT EXISTS("
+                    "SELECT 1 FROM users_x_groups u_x_g"
+                    " WHERE u_x_g.group_uuid = $1::uuid"
+                    " AND u_x_g.user_uuid = $2::uuid"
+                    " AND u_x_g.is_owner"
+                ");",
+                2, NULL, (const char *[2]) { group_uuid, jwt_user_uuid }, NULL, NULL, 0);
+
+            if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
+                http_res_with_500(&http_conn->http_res);
+            else if (*PQgetvalue(owner_res, 0, 0) != 't')
+                http_res_with_401(&http_conn->http_res);
+            else
+            {
+
+                PGresult *add_watchlist_res = PQexecParams(pg_conn,
+                    "SELECT add_watchlist_for_group($1::uuid, $2::uuid);",
+                    2, NULL, (const char *[2]) { watchlist_uuid, group_uuid }, NULL, NULL, 0);
+
+                if (PQresultStatus(add_watchlist_res) != PGRES_TUPLES_OK)
+                    http_res_with_500(&http_conn->http_res);
+                else
+                    uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_204, UO_HTTP_VER_1_1);
+
+                PQclear(add_watchlist_res);
+            }
+        }
+
+        PQclear(owner_res);
+    }
+
+    uo_cb_invoke(cb);
+}
 
 // DELETE /v01/groups/{group_uuid}/
 void v01_delete_groups(
@@ -147,9 +248,92 @@ void v01_delete_groups(
 
 // DELETE /v01/groups/{group_uuid}/users/{user_uuid}/
 void v01_delete_groups_users(
-    uo_cb *cb);
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+    PGconn *pg_conn = uo_pg_http_conn_get_pg_conn(http_conn);
+
+    if (pg_conn)
+    {
+        char *jwt_user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(jwt_user_uuid));
+        char *group_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(group_uuid));
+        char *user_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(user_uuid));
+
+        PGresult *owner_res = PQexecParams(pg_conn,
+            "SELECT EXISTS("
+                "SELECT 1 FROM users_x_groups u_x_g"
+                " WHERE u_x_g.group_uuid = $1::uuid"
+                " AND u_x_g.user_uuid = $2::uuid"
+                " AND u_x_g.is_owner"
+            ");",
+            2, NULL, (const char *[2]) { group_uuid, jwt_user_uuid }, NULL, NULL, 0);
+
+        if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
+            http_res_with_500(&http_conn->http_res);
+        else if (*PQgetvalue(owner_res, 0, 0) != 't')
+            http_res_with_401(&http_conn->http_res);
+        else
+        {
+            PGresult *remove_user_res = PQexecParams(pg_conn,
+                "SELECT remove_user_from_group($1::uuid, $2::uuid);",
+                2, NULL, (const char *[2]) { user_uuid, group_uuid }, NULL, NULL, 0);
+
+            if (PQresultStatus(remove_user_res) != PGRES_TUPLES_OK)
+                http_res_with_500(&http_conn->http_res);
+            else
+                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_204, UO_HTTP_VER_1_1);
+
+            PQclear(remove_user_res);
+        }
+
+        PQclear(owner_res);
+    }
+
+    uo_cb_invoke(cb);
+}
 
 // DELETE /v01/groups/{group_uuid}/watchlists/{watchlist_uuid}/
 void v01_delete_groups_watchlists(
-    uo_cb *cb);
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+    PGconn *pg_conn = uo_pg_http_conn_get_pg_conn(http_conn);
 
+    if (pg_conn)
+    {
+        char *jwt_user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(jwt_user_uuid));
+        char *group_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(group_uuid));
+        char *watchlist_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(watchlist_uuid));
+
+        PGresult *owner_res = PQexecParams(pg_conn,
+            "SELECT EXISTS("
+                "SELECT 1 FROM users_x_groups u_x_g"
+                " WHERE u_x_g.group_uuid = $1::uuid"
+                " AND u_x_g.user_uuid = $2::uuid"
+                " AND u_x_g.is_owner"
+            ");",
+            2, NULL, (const char *[2]) { group_uuid, jwt_user_uuid }, NULL, NULL, 0);
+
+        if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
+            http_res_with_500(&http_conn->http_res);
+        else if (*PQgetvalue(owner_res, 0, 0) != 't')
+            http_res_with_401(&http_conn->http_res);
+        else
+        {
+            PGresult *remove_watchlist_res = PQexecParams(pg_conn,
+                "SELECT remove_watchlist_from_group($1::uuid, $2::uuid);",
+                2, NULL, (const char *[2]) { watchlist_uuid, group_uuid }, NULL, NULL, 0);
+
+            if (PQresultStatus(remove_watchlist_res) != PGRES_TUPLES_OK)
+                http_res_with_500(&http_conn->http_res);
+            else
+                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_204, UO_HTTP_VER_1_1);
+
+            PQclear(remove_watchlist_res);
+        }
+
+        PQclear(owner_res);
+    }
+
+    uo_cb_invoke(cb);
+}

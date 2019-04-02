@@ -53,7 +53,7 @@ void v01_put_instruments_notes(
         else
         {
             PGresult *add_note_res = PQexecParams(pg_conn,
-                "SELECT add_note_to_instrument($1::uuid, $2::uuid) note_x_instrument_uuid;",
+                "SELECT add_note_to_instrument($1::uuid, $2::uuid);",
                 2, NULL, (const char *[2]) { note_uuid, instrument_uuid }, NULL, NULL, 0);
 
             if (PQresultStatus(add_note_res) != PGRES_TUPLES_OK)

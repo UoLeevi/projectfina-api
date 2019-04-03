@@ -78,7 +78,7 @@ int main(
     uo_http_server_add_req_handler(http_server, "POST /v01/watchlists/", v01_post_watchlists);
     uo_http_server_add_req_handler(http_server, "PUT /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/", v01_put_watchlists_instruments);
     //uo_http_server_add_req_handler(http_server, "PUT /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/", v01_put_watchlists_instruments_notes);
-    //uo_http_server_add_req_handler(http_server, "DELETE /v01/watchlists/{watchlist_uuid}/", v01_delete_watchlists);
+    uo_http_server_add_req_handler(http_server, "DELETE /v01/watchlists/{watchlist_uuid}/", v01_delete_watchlists);
     uo_http_server_add_req_handler(http_server, "DELETE /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/", v01_delete_watchlists_instruments);
     //uo_http_server_add_req_handler(http_server, "DELETE /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/", v01_delete_watchlists_instruments_notes);
 
@@ -94,7 +94,7 @@ int main(
     uo_http_server_add_req_handler(http_server, "POST /v01/groups/", v01_post_groups);
     uo_http_server_add_req_handler(http_server, "PUT /v01/groups/{group_uuid}/users/{user_uuid}/", v01_put_groups_users);
     uo_http_server_add_req_handler(http_server, "PUT /v01/groups/{group_uuid}/watchlists/{watchlist_uuid}/", v01_put_groups_watchlists);
-    //uo_http_server_add_req_handler(http_server, "DELETE /v01/groups/{group_uuid}/", v01_delete_groups);
+    uo_http_server_add_req_handler(http_server, "DELETE /v01/groups/{group_uuid}/", v01_delete_groups);
     uo_http_server_add_req_handler(http_server, "DELETE /v01/groups/{group_uuid}/users/{user_uuid}/", v01_delete_groups_users);
     uo_http_server_add_req_handler(http_server, "DELETE /v01/groups/{group_uuid}/watchlists/{watchlist_uuid}/", v01_delete_groups_watchlists);
 

@@ -63,7 +63,42 @@ void v01_get_watchlists_instruments(
 
 // GET /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/
 void v01_get_watchlists_instruments_notes(
-    uo_cb *cb);
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+    PGconn *pg_conn = uo_pg_http_conn_get_pg_conn(http_conn);
+
+    if (pg_conn)
+    {
+        char *jwt_user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(jwt_user_uuid));
+        char *watchlist_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(watchlist_uuid));
+        char *instrument_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(instrument_uuid));
+
+        PGresult *member_res = PQexecParams(pg_conn,
+            "SELECT EXISTS("
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
+                " WHERE watchlist_uuid = $2::uuid"
+            ");",
+            2, NULL, (const char *[2]) { jwt_user_uuid, watchlist_uuid }, NULL, NULL, 0);
+
+        if (PQresultStatus(member_res) != PGRES_TUPLES_OK)
+            http_res_with_500(&http_conn->http_res);
+        else if (*PQgetvalue(member_res, 0, 0) != 't')
+            http_res_with_401(&http_conn->http_res);
+        else
+        {
+            PGresult *notes_res = PQexecParams(pg_conn,
+                "SELECT get_notes_for_instrument_on_watchlist_as_json($1::uuid, $2::uuid) json;",
+                2, NULL, (const char *[2]) { instrument_uuid, watchlist_uuid }, NULL, NULL, 0);
+
+            uo_pg_http_res_json_from_pg_res(&http_conn->http_res, notes_res);
+        }
+
+        PQclear(member_res);
+    }
+
+    uo_cb_invoke(cb);
+}
 
 // POST /v01/watchlists/
 void v01_post_watchlists(
@@ -152,7 +187,49 @@ void v01_put_watchlists_instruments(
 
 // PUT /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/
 void v01_put_watchlists_instruments_notes(
-    uo_cb *cb);
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+    PGconn *pg_conn = uo_pg_http_conn_get_pg_conn(http_conn);
+
+    if (pg_conn)
+    {
+        char *jwt_user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(jwt_user_uuid));
+        char *watchlist_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(watchlist_uuid));
+        char *instrument_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(instrument_uuid));
+        char *note_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(note_uuid));
+
+        PGresult *owner_res = PQexecParams(pg_conn,
+            "SELECT EXISTS("
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
+                " WHERE watchlist_uuid = $2::uuid"
+                " AND user_is_owner"
+            ");",
+            2, NULL, (const char *[2]) { watchlist_uuid, jwt_user_uuid }, NULL, NULL, 0);
+
+        if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
+            http_res_with_500(&http_conn->http_res);
+        else if (*PQgetvalue(owner_res, 0, 0) != 't')
+            http_res_with_401(&http_conn->http_res);
+        else
+        {
+            PGresult *add_note_res = PQexecParams(pg_conn,
+                "SELECT add_note_to_instrument_on_watchlist($1::uuid, $2::uuid, $3::uuid);",
+                3 , NULL, (const char *[3]) { note_uuid, instrument_uuid, watchlist_uuid }, NULL, NULL, 0);
+
+            if (PQresultStatus(add_note_res) != PGRES_TUPLES_OK)
+                http_res_with_500(&http_conn->http_res);
+            else
+                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_204, UO_HTTP_VER_1_1);
+
+            PQclear(add_note_res);
+        }
+
+        PQclear(owner_res);
+    }
+
+    uo_cb_invoke(cb);
+}
 
 // DELETE /v01/watchlists/{watchlist_uuid}/
 void v01_delete_watchlists(
@@ -245,4 +322,49 @@ void v01_delete_watchlists_instruments(
 
 // DELETE /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/
 void v01_delete_watchlists_instruments_notes(
-    uo_cb *cb);
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+    PGconn *pg_conn = uo_pg_http_conn_get_pg_conn(http_conn);
+
+    if (pg_conn)
+    {
+        char *jwt_user_uuid = uo_http_conn_get_user_data(http_conn, uo_nameof(jwt_user_uuid));
+        char *watchlist_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(watchlist_uuid));
+        char *instrument_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(instrument_uuid));
+        char *note_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(note_uuid));
+
+        PGresult *owner_res = PQexecParams(pg_conn,
+            "SELECT EXISTS("
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
+                " WHERE watchlist_uuid = $2::uuid"
+                " AND user_is_owner)" 
+            " OR EXISTS("
+                "SELECT 1 FROM get_notes_for_instrument_on_watchlist($3::uuid, $2::uuid)"
+                " WHERE created_by_user_uuid = $1::uuid"
+                " AND uuid = $4::uuid);",
+            4, NULL, (const char *[4]) { jwt_user_uuid, watchlist_uuid, instrument_uuid, note_uuid }, NULL, NULL, 0);
+
+        if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
+            http_res_with_500(&http_conn->http_res);
+        else if (*PQgetvalue(owner_res, 0, 0) != 't')
+            http_res_with_401(&http_conn->http_res);
+        else
+        {
+            PGresult *remove_note_res = PQexecParams(pg_conn,
+                "SELECT remove_note_from_instrument_on_watchlist($1::uuid, $2::uuid, $3::uuid);",
+                3, NULL, (const char *[3]) { note_uuid, instrument_uuid, watchlist_uuid }, NULL, NULL, 0);
+
+            if (PQresultStatus(remove_note_res) != PGRES_TUPLES_OK)
+                http_res_with_500(&http_conn->http_res);
+            else
+                uo_http_res_set_status_line(&http_conn->http_res, UO_HTTP_204, UO_HTTP_VER_1_1);
+
+            PQclear(remove_note_res);
+        }
+
+        PQclear(owner_res);
+    }
+
+    uo_cb_invoke(cb);
+}

@@ -4,7 +4,24 @@
 
 // GET /v01/instruments/{instrument_uuid}/
 void v01_get_instruments(
-    uo_cb *cb);
+    uo_cb *cb)
+{
+    uo_http_conn *http_conn = uo_cb_stack_index(cb, 0);
+    PGconn *pg_conn = uo_pg_http_conn_get_pg_conn(http_conn);
+
+    if (pg_conn)
+    {
+        char *instrument_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(instrument_uuid));
+
+        PGresult *instrument_res = PQexecParams(pg_conn,
+            "SELECT get_instrument_as_json($1::uuid) json;",
+            1, NULL, (const char *[1]) { instrument_uuid }, NULL, NULL, 0);
+
+        uo_pg_http_res_json_from_pg_res(&http_conn->http_res, instrument_res);
+    }
+
+    uo_cb_invoke(cb);
+}
 
 // GET /v01/instruments/{instrument_uuid}/notes/
 void v01_get_instruments_notes(

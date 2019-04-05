@@ -7,15 +7,15 @@ extern "C" {
 
 #include "uo_cb.h"
 
-// GET /v01/notes/
+// GET /user/v01/notes/
 void v01_get_notes(
     uo_cb *cb);
 
-// POST /v01/notes/
+// POST /user/v01/notes/
 void v01_post_notes(
     uo_cb *cb);
 
-// DELETE /v01/notes/{note_uuid}/
+// DELETE /user/v01/notes/{note_uuid}/
 void v01_delete_notes(
     uo_cb *cb);
 

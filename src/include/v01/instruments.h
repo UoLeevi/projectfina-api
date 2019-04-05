@@ -11,15 +11,15 @@ extern "C" {
 void v01_get_instruments(
     uo_cb *cb);
 
-// GET /v01/instruments/{instrument_uuid}/notes/
+// GET /user/v01/instruments/{instrument_uuid}/notes/
 void v01_get_instruments_notes(
     uo_cb *cb);
 
-// PUT /v01/instruments/{instrument_uuid}/notes/{note_uuid}/
+// PUT /user/v01/instruments/{instrument_uuid}/notes/{note_uuid}/
 void v01_put_instruments_notes(
     uo_cb *cb);
 
-// DELETE /v01/instruments/{instrument_uuid}/notes/{note_uuid}/
+// DELETE /user/v01/instruments/{instrument_uuid}/notes/{note_uuid}/
 void v01_delete_instruments_notes(
     uo_cb *cb);
 

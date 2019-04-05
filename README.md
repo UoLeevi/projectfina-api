@@ -2,6 +2,10 @@
 
 ## API Endpoints
 
+#### note about authorization
+
+Requests to API endpoints with URI path starting with `/user/` require a valid JWT token in the `Authorization: Bearer {token}` HTTP header.  
+
 ### markets
 
 `GET /v01/markets/`  
@@ -15,82 +19,82 @@ Get a list of instruments for a market.
 `GET /v01/instruments/{instrument_uuid}/`  
 Get an instrument.  
 
-`GET /v01/instruments/{instrument_uuid}/notes/`  
+`GET /user/v01/instruments/{instrument_uuid}/notes/`  
 Get a list of notes for an instrument.  
 
-`PUT /v01/instruments/{instrument_uuid}/notes/{note_uuid}/`  
+`PUT /user/v01/instruments/{instrument_uuid}/notes/{note_uuid}/`  
 Add a note to instrument.
 
-`DELETE /v01/instruments/{instrument_uuid}/notes/{note_uuid}/`  
+`DELETE /user/v01/instruments/{instrument_uuid}/notes/{note_uuid}/`  
 Remove a note from instrument.
 
 ### notes
 
-`GET /v01/notes/`  
+`GET /user/v01/notes/`  
 Get a list of notes created by current user.
 
-`POST /v01/notes/`  
+`POST /user/v01/notes/`  
 Create a note.
 
-`DELETE /v01/notes/{note_uuid}/`  
+`DELETE /user/v01/notes/{note_uuid}/`  
 Delete a note.
 
 ### watchlists
 
-`GET /v01/watchlists/`  
+`GET /user/v01/watchlists/`  
 Get a list of watchlists for current user.
 
-`GET /v01/watchlists/{watchlist_uuid}/instruments/`  
+`GET /user/v01/watchlists/{watchlist_uuid}/instruments/`  
 Get a list of instruments for a watchlist.  
 
-`GET /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/`  
+`GET /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/`  
 Get a list of notes for an instrument on a watchlist.  
 
-`POST /v01/watchlists/`  
+`POST /user/v01/watchlists/`  
 Create a watchlist.
 
-`PUT /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/`  
+`PUT /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/`  
 Add an instrument to watchlist.
 
-`PUT /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/`  
+`PUT /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/`  
 Add a note to instrument on watchlist.
 
-`DELETE /v01/watchlists/{watchlist_uuid}/`  
+`DELETE /user/v01/watchlists/{watchlist_uuid}/`  
 Delete a watchlist.
 
-`DELETE /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/`  
+`DELETE /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/`  
 Remove an instrument from watchlist.
 
-`DELETE /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/`  
+`DELETE /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/`  
 Remove a note from instrument on watchlist.
 
 ### groups
 
-`GET /v01/groups/`  
+`GET /user/v01/groups/`  
 Get a list of groups for current user.
 
-`GET /v01/groups/{group_uuid}/users/`  
+`GET /user/v01/groups/{group_uuid}/users/`  
 Get a list of users for group.
 
-`GET /v01/groups/{group_uuid}/watchlists/`  
+`GET /user/v01/groups/{group_uuid}/watchlists/`  
 Get a list of watchlists for group.
 
-`POST /v01/groups/`  
+`POST /user/v01/groups/`  
 Create a group.
 
-`PUT /v01/groups/{group_uuid}/users/{user_uuid}/`  
+`PUT /user/v01/groups/{group_uuid}/users/{user_uuid}/`  
 Add a user for group.
 
-`PUT /v01/groups/{group_uuid}/watchlists/{watchlist_uuid}/`  
+`PUT /user/v01/groups/{group_uuid}/watchlists/{watchlist_uuid}/`  
 Add a watchlist for group.
 
-`DELETE /v01/groups/{group_uuid}/`  
+`DELETE /user/v01/groups/{group_uuid}/`  
 Delete a group.
 
-`DELETE /v01/groups/{group_uuid}/users/{user_uuid}/`  
+`DELETE /user/v01/groups/{group_uuid}/users/{user_uuid}/`  
 Remove a user from group.
 
-`DELETE /v01/groups/{group_uuid}/watchlists/{watchlist_uuid}/`  
+`DELETE /user/v01/groups/{group_uuid}/watchlists/{watchlist_uuid}/`  
 Remove a watchlist from group.
 
 ### current

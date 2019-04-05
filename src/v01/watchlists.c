@@ -2,7 +2,7 @@
 #include "uo_http_util.h"
 #include "uo_pg.h"
 
-// GET /v01/watchlists/
+// GET /user/v01/watchlists/
 void v01_get_watchlists(
     uo_cb *cb)
 {
@@ -23,7 +23,7 @@ void v01_get_watchlists(
     uo_cb_invoke(cb);
 }
 
-// GET /v01/watchlists/{watchlist_uuid}/instruments/
+// GET /user/v01/watchlists/{watchlist_uuid}/instruments/
 void v01_get_watchlists_instruments(
     uo_cb *cb)
 {
@@ -61,7 +61,7 @@ void v01_get_watchlists_instruments(
     uo_cb_invoke(cb);
 }
 
-// GET /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/
+// GET /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/
 void v01_get_watchlists_instruments_notes(
     uo_cb *cb)
 {
@@ -100,7 +100,7 @@ void v01_get_watchlists_instruments_notes(
     uo_cb_invoke(cb);
 }
 
-// POST /v01/watchlists/
+// POST /user/v01/watchlists/
 void v01_post_watchlists(
     uo_cb *cb)
 {
@@ -140,7 +140,7 @@ void v01_post_watchlists(
     uo_cb_invoke(cb);
 }
 
-// PUT /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/
+// PUT /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/
 void v01_put_watchlists_instruments(
     uo_cb *cb)
 {
@@ -185,7 +185,7 @@ void v01_put_watchlists_instruments(
     uo_cb_invoke(cb);
 }
 
-// PUT /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/
+// PUT /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/
 void v01_put_watchlists_instruments_notes(
     uo_cb *cb)
 {
@@ -231,7 +231,7 @@ void v01_put_watchlists_instruments_notes(
     uo_cb_invoke(cb);
 }
 
-// DELETE /v01/watchlists/{watchlist_uuid}/
+// DELETE /user/v01/watchlists/{watchlist_uuid}/
 void v01_delete_watchlists(
     uo_cb *cb)
 {
@@ -275,7 +275,7 @@ void v01_delete_watchlists(
     uo_cb_invoke(cb);
 }
 
-// DELETE /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/
+// DELETE /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/
 void v01_delete_watchlists_instruments(
     uo_cb *cb)
 {
@@ -320,7 +320,7 @@ void v01_delete_watchlists_instruments(
     uo_cb_invoke(cb);
 }
 
-// DELETE /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/
+// DELETE /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/
 void v01_delete_watchlists_instruments_notes(
     uo_cb *cb)
 {

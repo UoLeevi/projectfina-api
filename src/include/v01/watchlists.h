@@ -7,39 +7,39 @@ extern "C" {
 
 #include "uo_cb.h"
 
-// GET /v01/watchlists/
+// GET /user/v01/watchlists/
 void v01_get_watchlists(
     uo_cb *cb);
 
-// GET /v01/watchlists/{watchlist_uuid}/instruments/
+// GET /user/v01/watchlists/{watchlist_uuid}/instruments/
 void v01_get_watchlists_instruments(
     uo_cb *cb);
 
-// GET /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/
+// GET /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/
 void v01_get_watchlists_instruments_notes(
     uo_cb *cb);
 
-// POST /v01/watchlists/
+// POST /user/v01/watchlists/
 void v01_post_watchlists(
     uo_cb *cb);
 
-// PUT /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/
+// PUT /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/
 void v01_put_watchlists_instruments(
     uo_cb *cb);
 
-// PUT /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/
+// PUT /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/
 void v01_put_watchlists_instruments_notes(
     uo_cb *cb);
 
-// DELETE /v01/watchlists/{watchlist_uuid}/
+// DELETE /user/v01/watchlists/{watchlist_uuid}/
 void v01_delete_watchlists(
     uo_cb *cb);
 
-// DELETE /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/
+// DELETE /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/
 void v01_delete_watchlists_instruments(
     uo_cb *cb);
 
-// DELETE /v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/
+// DELETE /user/v01/watchlists/{watchlist_uuid}/instruments/{instrument_uuid}/notes/{note_uuid}/
 void v01_delete_watchlists_instruments_notes(
     uo_cb *cb);
 

@@ -30,11 +30,11 @@ void v01_get_markets_instruments(
 
     if (pg_conn)
     {
-        char *mic = uo_http_conn_get_req_data(http_conn, uo_nameof(mic));
+        char *market_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(market_uuid));
 
         PGresult *instruments_res = PQexecParams(pg_conn,
-            "SELECT get_instruments_for_market_by_mic_as_json($1::text) json;",
-            1, NULL, (const char *[1]) { mic }, NULL, NULL, 0);
+            "SELECT get_instruments_for_market_as_json($1::uuid) json;",
+            1, NULL, (const char *[1]) { market_uuid }, NULL, NULL, 0);
 
         uo_pg_http_res_json_from_pg_res(&http_conn->http_res, instruments_res);
     }

@@ -54,7 +54,7 @@ int main(
     uo_http_server_add_req_handler(http_server, "GET /v01/markets/{market_uuid}/instruments/", v01_get_markets_instruments);
 
     // instruments
-    uo_http_server_add_req_handler(http_server, "GET /v01/instruments/{instrument_uuid}/", v01_get_instruments);
+    uo_http_server_add_req_handler(http_server, "GET /v01/instruments/", v01_get_instruments);
     uo_http_server_add_req_handler(http_server, "GET /user/v01/instruments/{instrument_uuid}/notes/", v01_get_instruments_notes);
     uo_http_server_add_req_handler(http_server, "PUT /user/v01/instruments/{instrument_uuid}/notes/{note_uuid}/", v01_put_instruments_notes);
     uo_http_server_add_req_handler(http_server, "DELETE /user/v01/instruments/{instrument_uuid}/notes/{note_uuid}/", v01_delete_instruments_notes);

@@ -7,7 +7,7 @@ extern "C" {
 
 #include "uo_cb.h"
 
-// GET /v01/instruments/{instrument_uuid}/
+// GET /v01/instruments/
 void v01_get_instruments(
     uo_cb *cb);
 

@@ -2,7 +2,7 @@
 #include "uo_http_util.h"
 #include "uo_pg.h"
 
-// GET /v01/instruments/{instrument_uuid}/
+// GET /v01/instruments/
 void v01_get_instruments(
     uo_cb *cb)
 {
@@ -11,13 +11,11 @@ void v01_get_instruments(
 
     if (pg_conn)
     {
-        char *instrument_uuid = uo_http_conn_get_req_data(http_conn, uo_nameof(instrument_uuid));
+        PGresult *instruments_res = PQexecParams(pg_conn,
+            "SELECT get_instruments_as_json() json;",
+            0, NULL, NULL, NULL, NULL, 0);
 
-        PGresult *instrument_res = PQexecParams(pg_conn,
-            "SELECT get_instrument_as_json($1::uuid) json;",
-            1, NULL, (const char *[1]) { instrument_uuid }, NULL, NULL, 0);
-
-        uo_pg_http_res_json_from_pg_res(&http_conn->http_res, instrument_res);
+        uo_pg_http_res_json_from_pg_res(&http_conn->http_res, instruments_res);
     }
 
     uo_cb_invoke(cb);

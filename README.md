@@ -16,8 +16,8 @@ Get a list of instruments for a market.
 
 ### instruments
 
-`GET /v01/instruments/{instrument_uuid}/`  
-Get an instrument.  
+`GET /v01/instruments/`  
+Get a list of instruments.  
 
 `GET /user/v01/instruments/{instrument_uuid}/notes/`  
 Get a list of notes for an instrument.  

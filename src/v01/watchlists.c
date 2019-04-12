@@ -37,8 +37,8 @@ void v01_get_watchlists_instruments(
 
         PGresult *member_res = PQexecParams(pg_conn,
             "SELECT EXISTS("
-                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
-                " WHERE watchlist_uuid = $2::uuid"
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid) w"
+                " WHERE w.uuid = $2::uuid"
             ");",
             2, NULL, (const char *[2]) { jwt_user_uuid, watchlist_uuid }, NULL, NULL, 0);
 
@@ -76,8 +76,8 @@ void v01_get_watchlists_instruments_notes(
 
         PGresult *member_res = PQexecParams(pg_conn,
             "SELECT EXISTS("
-                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
-                " WHERE watchlist_uuid = $2::uuid"
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid) w"
+                " WHERE w.uuid = $2::uuid"
             ");",
             2, NULL, (const char *[2]) { jwt_user_uuid, watchlist_uuid }, NULL, NULL, 0);
 
@@ -155,9 +155,9 @@ void v01_put_watchlists_instruments(
 
         PGresult *owner_res = PQexecParams(pg_conn,
             "SELECT EXISTS("
-                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
-                " WHERE watchlist_uuid = $2::uuid"
-                " AND user_is_owner"
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid) w"
+                " WHERE w.uuid = $2::uuid"
+                " AND w.user_is_owner"
             ");",
             2, NULL, (const char *[2]) { watchlist_uuid, jwt_user_uuid }, NULL, NULL, 0);
 
@@ -201,9 +201,9 @@ void v01_put_watchlists_instruments_notes(
 
         PGresult *owner_res = PQexecParams(pg_conn,
             "SELECT EXISTS("
-                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
-                " WHERE watchlist_uuid = $2::uuid"
-                " AND user_is_owner"
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid) w"
+                " WHERE w.uuid = $2::uuid"
+                " AND w.user_is_owner"
             ");",
             2, NULL, (const char *[2]) { watchlist_uuid, jwt_user_uuid }, NULL, NULL, 0);
 
@@ -245,9 +245,9 @@ void v01_delete_watchlists(
 
         PGresult *owner_res = PQexecParams(pg_conn,
             "SELECT EXISTS("
-                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
-                " WHERE watchlist_uuid = $2::uuid"
-                " AND user_is_owner"
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid) w"
+                " WHERE w.uuid = $2::uuid"
+                " AND w.user_is_owner"
             ");",
             2, NULL, (const char *[2]) { watchlist_uuid, jwt_user_uuid }, NULL, NULL, 0);
 
@@ -290,9 +290,9 @@ void v01_delete_watchlists_instruments(
 
         PGresult *owner_res = PQexecParams(pg_conn,
             "SELECT EXISTS("
-                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
-                " WHERE watchlist_uuid = $2::uuid"
-                " AND user_is_owner"
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid) "
+                " WHERE w.uuid = $2::uuid"
+                " AND w.user_is_owner"
             ");",
             2, NULL, (const char *[2]) { watchlist_uuid, jwt_user_uuid }, NULL, NULL, 0);
 
@@ -336,13 +336,13 @@ void v01_delete_watchlists_instruments_notes(
 
         PGresult *owner_res = PQexecParams(pg_conn,
             "SELECT EXISTS("
-                "SELECT 1 FROM get_watchlists_for_user($1::uuid)"
-                " WHERE watchlist_uuid = $2::uuid"
-                " AND user_is_owner)" 
+                "SELECT 1 FROM get_watchlists_for_user($1::uuid) w"
+                " WHERE w.uuid = $2::uuid"
+                " AND w.user_is_owner)" 
             " OR EXISTS("
-                "SELECT 1 FROM get_notes_for_instrument_on_watchlist($3::uuid, $2::uuid)"
-                " WHERE created_by_user_uuid = $1::uuid"
-                " AND uuid = $4::uuid);",
+                "SELECT 1 FROM get_notes_for_instrument_on_watchlist($3::uuid, $2::uuid) n"
+                " WHERE n.created_by_user_uuid = $1::uuid"
+                " AND n.uuid = $4::uuid);",
             4, NULL, (const char *[4]) { jwt_user_uuid, watchlist_uuid, instrument_uuid, note_uuid }, NULL, NULL, 0);
 
         if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)

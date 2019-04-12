@@ -49,8 +49,8 @@ void v01_get_watchlists_instruments(
         else
         {
             PGresult *instruments_res = PQexecParams(pg_conn,
-                "SELECT get_instrument_uuids_for_watchlist_as_json($1::uuid) json;",
-                2, NULL, (const char *[1]) { watchlist_uuid }, NULL, NULL, 0);
+                "SELECT get_instruments_for_watchlist_as_json($1::uuid) json;",
+                1, NULL, (const char *[1]) { watchlist_uuid }, NULL, NULL, 0);
 
             uo_pg_http_res_json_from_pg_res(&http_conn->http_res, instruments_res);
         }

@@ -159,7 +159,7 @@ void v01_put_watchlists_instruments(
                 " WHERE w.uuid = $2::uuid"
                 " AND w.user_is_owner"
             ");",
-            2, NULL, (const char *[2]) { watchlist_uuid, jwt_user_uuid }, NULL, NULL, 0);
+            2, NULL, (const char *[2]) { jwt_user_uuid, watchlist_uuid }, NULL, NULL, 0);
 
         if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
             http_res_with_500(&http_conn->http_res);
@@ -205,7 +205,7 @@ void v01_put_watchlists_instruments_notes(
                 " WHERE w.uuid = $2::uuid"
                 " AND w.user_is_owner"
             ");",
-            2, NULL, (const char *[2]) { watchlist_uuid, jwt_user_uuid }, NULL, NULL, 0);
+            2, NULL, (const char *[2]) { jwt_user_uuid, watchlist_uuid }, NULL, NULL, 0);
 
         if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
             http_res_with_500(&http_conn->http_res);
@@ -249,7 +249,7 @@ void v01_delete_watchlists(
                 " WHERE w.uuid = $2::uuid"
                 " AND w.user_is_owner"
             ");",
-            2, NULL, (const char *[2]) { watchlist_uuid, jwt_user_uuid }, NULL, NULL, 0);
+            2, NULL, (const char *[2]) { jwt_user_uuid, watchlist_uuid }, NULL, NULL, 0);
 
         if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
             http_res_with_500(&http_conn->http_res);
@@ -294,7 +294,7 @@ void v01_delete_watchlists_instruments(
                 " WHERE w.uuid = $2::uuid"
                 " AND w.user_is_owner"
             ");",
-            2, NULL, (const char *[2]) { watchlist_uuid, jwt_user_uuid }, NULL, NULL, 0);
+            2, NULL, (const char *[2]) { jwt_user_uuid, watchlist_uuid }, NULL, NULL, 0);
 
         if (PQresultStatus(owner_res) != PGRES_TUPLES_OK)
             http_res_with_500(&http_conn->http_res);
